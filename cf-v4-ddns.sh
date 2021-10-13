@@ -16,7 +16,6 @@ set -o pipefail
 
 # Usage:
 # cf-ddns.sh -k cloudflare-api-key \
-#            -u user@example.com \
 #            -h host.example.com \     # fqdn of the record you want to update
 #            -z example.com \          # will show you all zones if forgot, but you need this
 #            -t A|AAAA                 # specify ipv4/ipv6, default: ipv4
@@ -26,12 +25,9 @@ set -o pipefail
 
 # default config
 
-# API key, see https://www.cloudflare.com/a/account/my-account,
+# API key, see https://dash.cloudflare.com/profile/api-tokens,
 # incorrect api-key results in E_UNAUTH error
 CFKEY=
-
-# Username, eg: user@example.com
-CFUSER=
 
 # Zone name, eg: example.com
 CFZONE_NAME=
@@ -61,10 +57,9 @@ else
 fi
 
 # get parameter
-while getopts k:u:h:z:t:f: opts; do
+while getopts k:h:z:t:f: opts; do
   case ${opts} in
     k) CFKEY=${OPTARG} ;;
-    u) CFUSER=${OPTARG} ;;
     h) CFRECORD_NAME=${OPTARG} ;;
     z) CFZONE_NAME=${OPTARG} ;;
     t) CFRECORD_TYPE=${OPTARG} ;;
@@ -120,8 +115,8 @@ if [ -f $ID_FILE ] && [ $(wc -l $ID_FILE | cut -d " " -f 1) == 4 ] \
     CFRECORD_ID=$(sed -n '2,1p' "$ID_FILE")
 else
     echo "Updating zone_identifier & record_identifier"
-    CFZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$CFZONE_NAME" -H "X-Auth-Email: $CFUSER" -H "X-Auth-Key: $CFKEY" -H "Content-Type: application/json" | grep -Po '(?<="id":")[^"]*' | head -1 )
-    CFRECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CFZONE_ID/dns_records?name=$CFRECORD_NAME" -H "X-Auth-Email: $CFUSER" -H "X-Auth-Key: $CFKEY" -H "Content-Type: application/json"  | grep -Po '(?<="id":")[^"]*' | head -1 )
+    CFZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$CFZONE_NAME" -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" | grep -Po '(?<="id":")[^"]*' | head -1 )
+    CFRECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CFZONE_ID/dns_records?name=$CFRECORD_NAME" -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json"  | grep -Po '(?<="id":")[^"]*' | head -1 )
     echo "$CFZONE_ID" > $ID_FILE
     echo "$CFRECORD_ID" >> $ID_FILE
     echo "$CFZONE_NAME" >> $ID_FILE
@@ -132,8 +127,7 @@ fi
 echo "Updating DNS to $WAN_IP"
 
 RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CFZONE_ID/dns_records/$CFRECORD_ID" \
-  -H "X-Auth-Email: $CFUSER" \
-  -H "X-Auth-Key: $CFKEY" \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   --data "{\"id\":\"$CFZONE_ID\",\"type\":\"$CFRECORD_TYPE\",\"name\":\"$CFRECORD_NAME\",\"content\":\"$WAN_IP\", \"ttl\":$CFTTL}")
 
