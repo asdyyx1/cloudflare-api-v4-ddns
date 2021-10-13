@@ -39,7 +39,7 @@ CFRECORD_NAME=
 CFRECORD_TYPE=A
 
 # Cloudflare TTL for record, between 120 and 86400 seconds
-CFTTL=120
+CFTTL=60
 
 # Ignore local file, update ip anyway
 FORCE=false
@@ -71,11 +71,6 @@ done
 if [ "$CFKEY" = "" ]; then
   echo "Missing api-key, get at: https://www.cloudflare.com/a/account/my-account"
   echo "and save in ${0} or using the -k flag"
-  exit 2
-fi
-if [ "$CFUSER" = "" ]; then
-  echo "Missing username, probably your email-address"
-  echo "and save in ${0} or using the -u flag"
   exit 2
 fi
 if [ "$CFRECORD_NAME" = "" ]; then 
@@ -115,8 +110,8 @@ if [ -f $ID_FILE ] && [ $(wc -l $ID_FILE | cut -d " " -f 1) == 4 ] \
     CFRECORD_ID=$(sed -n '2,1p' "$ID_FILE")
 else
     echo "Updating zone_identifier & record_identifier"
-    CFZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$CFZONE_NAME" -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" | grep -Po '(?<="id":")[^"]*' | head -1 )
-    CFRECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CFZONE_ID/dns_records?name=$CFRECORD_NAME" -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json"  | grep -Po '(?<="id":")[^"]*' | head -1 )
+    CFZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$CFZONE_NAME" -H "Authorization: Bearer $CFKEY" -H "Content-Type: application/json" | grep -Po '(?<="id":")[^"]*' | head -1 )
+    CFRECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CFZONE_ID/dns_records?name=$CFRECORD_NAME" -H "Authorization: Bearer $CFKEY" -H "Content-Type: application/json"  | grep -Po '(?<="id":")[^"]*' | head -1 )
     echo "$CFZONE_ID" > $ID_FILE
     echo "$CFRECORD_ID" >> $ID_FILE
     echo "$CFZONE_NAME" >> $ID_FILE
@@ -127,7 +122,7 @@ fi
 echo "Updating DNS to $WAN_IP"
 
 RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CFZONE_ID/dns_records/$CFRECORD_ID" \
-  -H "Authorization: Bearer $API_KEY" \
+  -H "Authorization: Bearer $CFKEY" \
   -H "Content-Type: application/json" \
   --data "{\"id\":\"$CFZONE_ID\",\"type\":\"$CFRECORD_TYPE\",\"name\":\"$CFRECORD_NAME\",\"content\":\"$WAN_IP\", \"ttl\":$CFTTL}")
 
